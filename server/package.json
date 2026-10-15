@@ -1,0 +1,19 @@
+{
+  "name": "edu-admin-server",
+  "version": "1.0.0",
+  "description": "教务管理系统后端 —— Node.js + Express + MySQL",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dayjs": "^1.11.13",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.11.5",
+    "swagger-ui-express": "^5.0.1"
+  }
+}

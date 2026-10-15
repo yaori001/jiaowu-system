@@ -1,0 +1,56 @@
+# 教务管理系统 —— 独立的 MySQL + Node 后端
+# 与服务器上已有的其他容器（邮件、Postgres 等）完全隔离：独立网络、独立卷、独立端口
+
+services:
+  edu-mysql:
+    image: mysql:8.0
+    container_name: edu-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      TZ: Asia/Shanghai
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - edu-mysql-data:/var/lib/mysql
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    ports:
+      # 仅绑定本机，外部无法直接访问数据库
+      - "127.0.0.1:${DB_HOST_PORT}:3306"
+    networks:
+      - edu-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  edu-server:
+    build: .
+    container_name: edu-server
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      DB_HOST: edu-mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      JWT_SECRET: ${JWT_SECRET}
+      TZ: Asia/Shanghai
+    ports:
+      - "${API_HOST_PORT}:3000"
+    depends_on:
+      edu-mysql:
+        condition: service_healthy
+    networks:
+      - edu-net
+
+volumes:
+  edu-mysql-data:
+
+networks:
+  edu-net:
+    driver: bridge
