@@ -1,0 +1,23 @@
+# 依赖
+node_modules/
+
+# 构建产物
+dist/
+edu-admin/dist/
+web/dist/
+
+# 环境变量（含密码、密钥，禁止提交）
+.env
+*.local
+
+# 部署临时文件
+*.tgz
+
+# 大文件：原始视频（99MB）和服务器上用的压缩视频单独管理，不进仓库
+辽宁建筑职业学院.mp4
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
