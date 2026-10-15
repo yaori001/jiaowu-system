@@ -1,0 +1,43 @@
+/* ========== 全局样式 ========== */
+:root {
+  --sidebar-width: 220px;
+  --header-height: 56px;
+  --page-bg: #f0f2f5;
+  --sidebar-bg: #1f2d3d;
+  --sidebar-text: #bfcbd9;
+}
+html.dark {
+  --page-bg: #141414;
+  --sidebar-bg: #1d1e1f;
+}
+
+* { box-sizing: border-box; }
+html, body, #app { margin: 0; height: 100%; }
+body {
+  font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  color: var(--el-text-color-primary);
+  background: var(--page-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 页面容器：每个业务页面最外层使用 */
+.page { display: flex; flex-direction: column; gap: 16px; }
+
+/* 搜索栏 */
+.search-bar .el-form-item { margin-bottom: 0; }
+.search-bar .el-form { display: flex; flex-wrap: wrap; gap: 12px 0; }
+
+/* 表格上方的操作按钮栏 */
+.toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 8px; flex-wrap: wrap; }
+.toolbar-left { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* 分页栏 */
+.pagination { display: flex; justify-content: flex-end; margin-top: 16px; }
+
+.text-muted { color: var(--el-text-color-secondary); font-size: 13px; }
+
+/* 路由切换动画 */
+.fade-slide-enter-active, .fade-slide-leave-active { transition: all 0.25s ease; }
+.fade-slide-enter-from { opacity: 0; transform: translateX(-12px); }
+.fade-slide-leave-to { opacity: 0; transform: translateX(12px); }
