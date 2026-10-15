@@ -1,0 +1,18 @@
+# 前端静态站点（nginx）—— 接入后端已创建的网络，反代 /api 到后端容器
+services:
+  edu-web:
+    image: nginx:alpine
+    container_name: edu-web
+    restart: unless-stopped
+    volumes:
+      - ./dist:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "8080:80"
+    networks:
+      - edu-net
+
+networks:
+  edu-net:
+    external: true
+    name: edu-admin-server_edu-net
