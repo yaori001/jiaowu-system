@@ -56,3 +56,14 @@ docker compose up -d --build
 ```
 
 接口文档：启动后访问 `http://<服务器>:8000/api-docs/`
+
+### 接口测试
+```bash
+# 测试已部署后端（默认）
+node test/api.test.mjs
+
+# 测试本地后端
+BASE_URL=http://localhost:8000/api node test/api.test.mjs
+```
+零依赖（Node 20 原生 fetch + assert），共 22 条用例，覆盖登录鉴权、角色权限隔离与各角色核心接口。
+详见 [`test/README.md`](test/README.md)、[`docs/测试用例.md`](docs/测试用例.md)、[`docs/测试报告.md`](docs/测试报告.md)。
