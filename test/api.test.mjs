@@ -32,7 +32,12 @@ const PWD = encryptPassword('123456')
 /* ---------- 简易测试框架 ---------- */
 let passed = 0
 let failed = 0
+let skipped = 0
 const results = []
+
+/** 前置数据缺失时抛出，用例按“跳过”计，不记失败 */
+class SkipError extends Error {}
+const skip = (msg) => { throw new SkipError(msg) }
 
 async function test(name, fn) {
   try {
@@ -41,6 +46,12 @@ async function test(name, fn) {
     results.push({ name, ok: true })
     console.log(`  ✓ ${name}`)
   } catch (e) {
+    if (e instanceof SkipError) {
+      skipped++
+      results.push({ name, skip: true, err: e.message })
+      console.log(`  ⊘ ${name}（跳过：${e.message}）`)
+      return
+    }
     failed++
     results.push({ name, ok: false, err: e.message })
     console.log(`  ✗ ${name}\n      → ${e.message}`)
@@ -177,10 +188,72 @@ await test('TC-20 获取公告列表', async () => {
   assert.strictEqual(json.code, 200)
 })
 
+console.log('\n【模块七】写操作（可回滚，执行后恢复原值，不改动数据）')
+await test('TC-21 教师录入成绩并校验，随后恢复原值', async () => {
+  // 取教师的第一门课与其第一个班级
+  const courses = (await api('GET', '/teacher/courses', { token: tokens.teacher })).json.data
+  if (!courses?.length) skip('该教师暂无授课课程')
+  const course = courses.find((c) => c.classes?.length)
+  if (!course) skip('该教师课程下暂无班级')
+  const classId = course.classes[0].id
+
+  // 取第一名学生及其当前成绩（原值用于回滚）
+  const before = (await api('GET', `/teacher/scores?courseId=${course.id}&classId=${classId}`, { token: tokens.teacher })).json.data
+  if (!before?.length) skip('该班级暂无学生')
+  const stu = before[0]
+  const origin = { studentId: stu.studentId, usual: stu.usual, final: stu.final }
+
+  // 写入一组测试分数
+  const TEST = { studentId: stu.studentId, usual: 66, final: 77 }
+  const save = await api('POST', '/teacher/scores', { token: tokens.teacher, body: { courseId: course.id, items: [TEST] } })
+  assert.strictEqual(save.json.code, 200, '保存成绩应成功')
+
+  // 校验写入结果：综合成绩 = 平时×40% + 期末×60% = 66×0.4 + 77×0.6 = 72.6 → 73（四舍五入）
+  const after = (await api('GET', `/teacher/scores?courseId=${course.id}&classId=${classId}`, { token: tokens.teacher })).json.data
+  const row = after.find((r) => r.studentId === stu.studentId)
+  assert.strictEqual(row.usual, 66, '平时成绩应已写入')
+  assert.strictEqual(row.final, 77, '期末成绩应已写入')
+  assert.strictEqual(row.total, 73, '综合成绩应按 4:6 自动计算')
+
+  // 回滚为原值
+  const restore = await api('POST', '/teacher/scores', { token: tokens.teacher, body: { courseId: course.id, items: [origin] } })
+  assert.strictEqual(restore.json.code, 200, '恢复原值应成功')
+})
+
+await test('TC-22 教师登记考勤并校验，随后恢复原状', async () => {
+  // 从历史记录里找一条已有的考勤（这样可以精确恢复，不新增脏数据）
+  const history = (await api('GET', '/teacher/attendance/history', { token: tokens.teacher })).json.data?.list
+  if (!history?.length) skip('该教师暂无考勤历史记录')
+  const h = history[0]
+
+  // 读取该次考勤明细（原始状态用于回滚）
+  const detail = (await api('GET', `/teacher/attendance?courseId=${h.courseId}&classId=${h.classId}&date=${h.date}`, { token: tokens.teacher })).json.data
+  const students = detail.students
+  if (!students?.length) skip('该考勤无学生')
+  const originRecords = detail.record.records.map((r) => ({ studentId: r.studentId, status: r.status }))
+
+  // 把第一名学生的状态改成与原来不同的值
+  const first = originRecords[0]
+  const flipped = first.status === 'absent' ? 'present' : 'absent'
+  const modified = originRecords.map((r, i) => (i === 0 ? { ...r, status: flipped } : r))
+  const save = await api('POST', '/teacher/attendance', { token: tokens.teacher, body: { courseId: h.courseId, classId: h.classId, date: h.date, records: modified } })
+  assert.strictEqual(save.json.code, 200, '考勤保存应成功')
+
+  // 校验修改已生效
+  const check = (await api('GET', `/teacher/attendance?courseId=${h.courseId}&classId=${h.classId}&date=${h.date}`, { token: tokens.teacher })).json.data
+  const changed = check.record.records.find((r) => r.studentId === first.studentId)
+  assert.strictEqual(changed.status, flipped, '考勤状态应已被修改')
+
+  // 回滚为原始状态
+  const restore = await api('POST', '/teacher/attendance', { token: tokens.teacher, body: { courseId: h.courseId, classId: h.classId, date: h.date, records: originRecords } })
+  assert.strictEqual(restore.json.code, 200, '恢复原状应成功')
+})
+
 /* ========================== 汇总 ========================== */
-const total = passed + failed
-console.log('\n' + '='.repeat(48))
-console.log(`测试结束：共 ${total} 条，通过 ${passed} 条，失败 ${failed} 条，通过率 ${total ? Math.round((passed / total) * 100) : 0}%`)
-console.log('='.repeat(48) + '\n')
+const total = passed + failed + skipped
+const ran = passed + failed
+console.log('\n' + '='.repeat(56))
+console.log(`测试结束：共 ${total} 条，通过 ${passed} 条，失败 ${failed} 条，跳过 ${skipped} 条，通过率 ${ran ? Math.round((passed / ran) * 100) : 0}%`)
+console.log('='.repeat(56) + '\n')
 
 process.exit(failed ? 1 : 0)
